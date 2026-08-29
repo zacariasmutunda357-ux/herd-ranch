@@ -1555,46 +1555,94 @@ function authSw(m){
   document.getElementById('a-log').style.display=m==='log'?'block':'none';
   document.getElementById('auth-h2').textContent=m==='reg'?'Cadastre-se':'Entrar';
 }
-function doReg(){
-  const t=document.getElementById('r-tel').value.trim();
+/* --- AUTH SUPABASE --- */
+async function doReg(){
+  const t=document.getElementById('r-te').value.trim();
   const p=document.getElementById('r-pw').value;
-  const p2=document.getElementById('r-pw2').value;
+  const p2=document.getElementById('r-pm2').value;
   if(!t){toast('Insere o número de telefone');return;}
   if(p.length<6){toast('Senha: mínimo 6 caracteres');return;}
-  if(p!==p2){toast('As senhas não coincidem');return;}
-  let u=DB.users.find(x=>x.phone===t);
-  if(!u){
-    const refCode=document.getElementById('r-ref').value.trim().toUpperCase();
-    // Find inviter by HR-XXXX code or phone
-    const inviter=refCode?DB.users.find(function(x){
-      return ('HR-'+String(x.id).padStart(4,'0'))===refCode ||
-             x.phone.replace(/\s/g,'').replace('+','')===refCode.replace(/\s/g,'').replace('+','');
-    }):null;
-    u={id:DB.nextId++,phone:t,name:t,pw:p,balance:500,active:true,invested:0,totalProfit:0,dailyProfit:0,animals:0,ownedAnimals:[],tasks:[],feedLog:{},dados:{tel:t},invited:[],joinDate:dateStr(),
-      refBy:inviter?inviter.id:null,
-      refL1:inviter?inviter.id:null,
-      refL2:inviter&&inviter.refBy?inviter.refBy:null,
-      refL3:inviter&&inviter.refBy?(function(){var l2=getU(inviter.refBy);return l2&&l2.refBy?l2.refBy:null;})():null
-    };
-    DB.users.push(u);
-    logMov(u.id,'bonus','🎁','Bónus de inscrição',500,'gld');
-    // Add to inviter's team
-    if(inviter){
-      if(!inviter.invited)inviter.invited=[];
-      inviter.invited.push({userId:u.id,phone:t,name:t,invested:false,boughtAnimal:false,joinDate:dateStr()});
-      logMov(inviter.id,'bonus','🔗','Novo membro na equipa: '+t,null,'gld');
-    }
+  if(p!=p2){toast('As senhas não coincidem');return;}
+
+  // 1. Verificar se o número já está registado no Supabase
+  const { data: userExiste } = await supabaseClient
+    .from('usuarios')
+    .select('*')
+    .eq('phone', t)
+    .maybeSingle();
+
+  if(userExiste){
+    toast('Este número já está registado!');
+    return;
   }
-  ME=u;if(!ME.feedLog)ME.feedLog={};launch();
-}
-function doLog(){
+
+  // 2. Capturar o código de convite do campo ou do localStorage
+  let refCode = document.getElementById('r-ref').value.trim().toUpperCase() || localStorage.getItem('ref_code') || '';
+
+  // 3. Inserir na base de dados centralizada do Supabase
+  const { data: novoUsuario, error } = await supabaseClient
+    .from('usuarios')
+    .insert([{
+      phone: t,
+      password: p,
+      invited_by: refCode,
+      balance: 500,
+      active: true,
+      created_at: new Date().toISOString()
+    }])
+    .select()
+    .single();
+
+  if(error){
+    toast('Erro ao registar: ' + error.message);
+    return;
+  }
+
+  // Define o utilizador atual, limpa o convite temporário e entra na plataforma
+  ME = {
+  invested: 0,
+  totalProfit: 0,
+  dailyProfit: 0,
+  animals: [],
+  ownedAnimals: [],
+  invited: [],
+  dados: { nome: '' },
+  ...novoUsuario
+};
+  localStorage.removeItem('ref_code');
+  launch();
+  }
+async function doLog(){
   const t=document.getElementById('l-tel').value.trim();
   const p=document.getElementById('l-pw').value;
   if(!t||!p){toast('Preenche todos os campos');return;}
-  let u=DB.users.find(x=>x.phone===t);
-  if(!u){u={id:DB.nextId++,phone:t,name:t,pw:p,balance:0,active:true,invested:0,totalProfit:0,dailyProfit:0,animals:0,ownedAnimals:[],tasks:[],feedLog:{},dados:{tel:t},invited:[],joinDate:dateStr()};DB.users.push(u);logMov(u.id,'registo','👤','Novo login',null,'neu');}
-  ME=u;if(!ME.feedLog)ME.feedLog={};launch();
-}
+
+  // Buscar utilizador na base de dados central do Supabase
+  const { data: user, error } = await supabaseClient
+    .from('usuarios')
+    .select('*')
+    .eq('phone', t)
+    .eq('password', p)
+    .maybeSingle();
+
+  if(error || !user){
+    toast('Telefone ou senha incorretos!');
+    return;
+  }
+
+  ME = {
+  invested: 0,
+  totalProfit: 0,
+  dailyProfit: 0,
+  animals: [],
+  ownedAnimals: [],
+  invited: [],
+  dados: { nome: '' },
+  ...user
+};
+  launch();
+  }
+  
 function launch(){
   if(!ME.active){toast('❌ Conta desactivada. Contacta o suporte.');return;}
   document.getElementById('sc-auth').classList.remove('on');
