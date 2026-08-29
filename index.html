@@ -5,7 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Herd Ranch — Plataforma</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
+<!-- 1. CDN do Supabase + 2. Inicialização da Conexão -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = 'https://fsisdqovpycwrclhdtrl.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_aPZDaeLUnRruAlNYyaRQww_h44-Mjiq';
+  // Linha 13 corrigida:
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+</script>
+  <style>
 :root {
   --green:#1a56d6; --green2:#1440a8; --green3:#e8f0ff; --green4:#b8d0ff;
   --gold:#f0a800; --gold2:#fff3cc;
