@@ -3228,7 +3228,7 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
     document.getElementById('sc-auth').classList.remove('on');
     document.getElementById('sc-app').classList.add('on');
     buildTasks();buildAnimals();updateUI();
-    document.getElementById('sh-lk').textContent='herd-ranch.app/ref/'+ME.phone.replace(/\s/g,'').replace('+','');
+    document.getElementById('sh-lk').textContent='herd-ranch.vercel.app/ref/'+ME.phone.replace(/\s/g,'').replace('+','');
     const act=DB.announcements.find(a=>a.active);
     if(act)showAnn(act.icon,act.title,act.msg,act.date,act.img||null);
   }
