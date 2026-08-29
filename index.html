@@ -1054,7 +1054,13 @@ textarea.adm-inp{resize:none;}
   <div class="sub-header"><button class="sub-back" onclick="closeSub()">‹</button><div class="sub-title">Meu time</div><div class="sub-ph"></div></div>
   <div class="sub-body">
     <div class="sh-banner"><span class="sh-icon">🔗</span><div class="sh-title">Convide Amigos</div><div class="sh-sub">Ganhe 15% no primeiro investimento</div></div>
-    <div class="lk-box"><div class="lk-lbl">O teu link pessoal</div><div class="lk-row"><div class="lk-txt" id="sh-lk">herd-ranch.vercel.app/ref/—</div><button class="lk-cp" onclick="cpLk()">📋 Copiar</button></div></div>
+    <!-- Invite Code prominent display -->
+    <div style="background:linear-gradient(135deg,var(--green),var(--green2));border-radius:16px;padding:16px;margin-bottom:10px;text-align:center;">
+      <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">O teu código de convite</div>
+      <div id="sh-code-display" style="font-size:32px;font-weight:900;color:#fff;letter-spacing:4px;font-family:monospace;">HR-0000</div>
+      <button onclick="cpCode()" style="margin-top:10px;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.4);color:#fff;font-family:var(--fn);font-size:13px;font-weight:700;padding:7px 20px;border-radius:20px;cursor:pointer;">📋 Copiar Código</button>
+    </div>
+    <div class="lk-box"><div class="lk-lbl">Link directo de convite</div><div class="lk-row"><div class="lk-txt" id="sh-lk" style="font-size:11px;">—</div><button class="lk-cp" onclick="cpLk()">📋 Copiar</button></div></div>
     <div class="sh-stats-grid">
       <div class="ss-c"><div class="ss-v" id="sh-cnt">0</div><div class="ss-l">👥 Convidados</div></div>
       <div class="ss-c"><div class="ss-v" id="sh-inv">0</div><div class="ss-l">💰 Investiram</div></div>
@@ -1550,9 +1556,12 @@ function doReg(){
   if(p!==p2){toast('As senhas não coincidem');return;}
   let u=DB.users.find(x=>x.phone===t);
   if(!u){
-    const refCode=document.getElementById('r-ref').value.trim();
-    // Find inviter by phone or referral code
-    const inviter=refCode?DB.users.find(x=>x.phone.replace(/\s/g,'').replace('+','')===refCode.replace(/\s/g,'').replace('+','')||('FAZ-'+String(x.id).padStart(4,'0'))===refCode.toUpperCase()):null;
+    const refCode=document.getElementById('r-ref').value.trim().toUpperCase();
+    // Find inviter by HR-XXXX code or phone
+    const inviter=refCode?DB.users.find(function(x){
+      return ('HR-'+String(x.id).padStart(4,'0'))===refCode ||
+             x.phone.replace(/\s/g,'').replace('+','')===refCode.replace(/\s/g,'').replace('+','');
+    }):null;
     u={id:DB.nextId++,phone:t,name:t,pw:p,balance:500,active:true,invested:0,totalProfit:0,dailyProfit:0,animals:0,ownedAnimals:[],tasks:[],feedLog:{},dados:{tel:t},invited:[],joinDate:dateStr(),
       refBy:inviter?inviter.id:null,
       refL1:inviter?inviter.id:null,
@@ -1583,7 +1592,13 @@ function launch(){
   document.getElementById('sc-auth').classList.remove('on');
   document.getElementById('sc-app').classList.add('on');
   buildTasks();buildAnimals();updateUI();
-  document.getElementById('sh-lk').textContent='herd-ranch.app/ref/'+ME.phone.replace(/\s/g,'').replace('+','');
+  var invCode=getInviteCode(ME);
+  var invLink=getInviteLink(ME);
+  var lkEl=document.getElementById('sh-lk');
+  if(lkEl)lkEl.textContent=invLink;
+  // Also show invite code prominently
+  var codeEl=document.getElementById('sh-code-display');
+  if(codeEl)codeEl.textContent=invCode;
   const act=DB.announcements.find(a=>a.active);
   if(act)showAnn(act.icon,act.title,act.msg,act.date,act.img||null);
 }
@@ -2011,7 +2026,12 @@ function saveDad(){
 }
 
 /* ── PARTILHAR ── */
-function cpLk(){navigator.clipboard?.writeText(document.getElementById('sh-lk').textContent);toast('Link copiado!');}
+function cpLk(){navigator.clipboard?.writeText(document.getElementById('sh-lk').textContent);toast('✅ Link copiado!');}
+function cpCode(){
+  var code=document.getElementById('sh-code-display').textContent;
+  navigator.clipboard?.writeText(code);
+  toast('✅ Código '+code+' copiado!');
+}
 function shareNow(){const l=document.getElementById('sh-lk').textContent;if(navigator.share)navigator.share({title:'Herd Ranch',text:'Investe na fazenda!',url:'https://'+l});else cpLk();}
 function renderPartilhar(){
   document.getElementById('sh-cnt').textContent=ME.invited.length;document.getElementById('sh-inv').textContent=ME.invited.filter(i=>i.invested).length;
@@ -3216,11 +3236,40 @@ function payCommissions(depositorId, amount){
   saveDB();
 }
 
+
+/* ══ CÓDIGO DE CONVITE ══ */
+function getInviteCode(user){
+  if(!user)return'';
+  return 'HR-'+String(user.id).padStart(4,'0');
+}
+function getInviteLink(user){
+  var base=window.location.href.split('?')[0];
+  return base+'?ref='+getInviteCode(user);
+}
+function checkUrlRef(){
+  // Auto-fill invite code from URL parameter
+  var params=new URLSearchParams(window.location.search);
+  var ref=params.get('ref');
+  if(ref){
+    var el=document.getElementById('r-ref');
+    if(el){
+      el.value=ref;
+      el.style.borderColor='var(--green)';
+      el.style.background='var(--green3)';
+    }
+    // Switch to register tab
+    authSw('reg');
+    toast('🔗 Código de convite aplicado: '+ref);
+  }
+}
+
 /* ── TOAST ── */
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2800);}
 
 /* ── INIT ── */
 (function init(){
+  // Check for invite code in URL
+  setTimeout(checkUrlRef, 500);
   const loaded=loadDB();
   if(!loaded||!DB.users.length){seed();}
   // Try to restore session
@@ -3228,7 +3277,13 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
     document.getElementById('sc-auth').classList.remove('on');
     document.getElementById('sc-app').classList.add('on');
     buildTasks();buildAnimals();updateUI();
-    document.getElementById('sh-lk').textContent='herd-ranch.vercel.app/ref/'+ME.phone.replace(/\s/g,'').replace('+','');
+    var invCode=getInviteCode(ME);
+  var invLink=getInviteLink(ME);
+  var lkEl=document.getElementById('sh-lk');
+  if(lkEl)lkEl.textContent=invLink;
+  // Also show invite code prominently
+  var codeEl=document.getElementById('sh-code-display');
+  if(codeEl)codeEl.textContent=invCode;
     const act=DB.announcements.find(a=>a.active);
     if(act)showAnn(act.icon,act.title,act.msg,act.date,act.img||null);
   }
