@@ -3332,5 +3332,13 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
     </div>
   </div>
 </div>
+  <script>
+  // Captura o ?ref= da URL e guarda na memória do navegador
+  const urlParams = new URLSearchParams(window.location.search);
+  const refCode = urlParams.get('ref');
+  if (refCode) {
+    localStorage.setItem('ref_code', refCode);
+  }
+</script>
 </body>
 </html>
