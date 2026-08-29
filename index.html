@@ -1685,12 +1685,70 @@ function closeSub(){
   document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
   document.getElementById('sc-app').classList.add('on');
 }
+/* --- SUPABASE FETCH (MEU TIME & ADM) --- */
+async function carregarMeuTime() {
+  const meuCodigo = getInviteCode(ME); 
+
+  const { data: convidados, error } = await supabaseClient
+    .from('usuarios')
+    .select('*')
+    .eq('invited_by', meuCodigo);
+
+  if (error) {
+    console.error("Erro ao carregar equipa:", error);
+    return;
+  }
+
+  const totalConvidadosEl = document.getElementById('st-team');
+  if (totalConvidadosEl) totalConvidadosEl.innerText = convidados.length;
+
+  const listaEl = document.getElementById('sh-lk-list');
+  if (listaEl) {
+    if (convidados.length === 0) {
+      listaEl.innerHTML = '<p style="text-align:center;color:#888;">Ainda não convidaste ninguém.</p>';
+    } else {
+      listaEl.innerHTML = convidados.map(c => `
+        <div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">
+          <span>📱 ${c.phone}</span>
+          <span style="color:green;">Ativo</span>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+async function carregarPainelADM() {
+  const { data: todosUsuarios, error } = await supabaseClient
+    .from('usuarios')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Erro no painel ADM:", error);
+    return;
+  }
+
+  const contadorADM = document.getElementById('adm-total-users');
+  if (contadorADM) contadorADM.innerText = todosUsuarios.length;
+
+  const listaADM = document.getElementById('adm-users-list');
+  if (listaADM) {
+    listaADM.innerHTML = todosUsuarios.map(u => `
+      <div style="padding:10px; margin-bottom:8px; background:#fff; border-radius:8px; border:1px solid #ddd;">
+        <p><strong>Telefone:</strong> ${u.phone}</p>
+        <p><strong>Convidado por:</strong> ${u.invited_by || 'Sem indicação (Direto)'}</p>
+        <p><strong>Saldo:</strong> ${u.balance} Kz</p>
+      </div>
+    `).join('');
+  }
+}
 
 /* ── UI UPDATE ── */
 function kz2(v){return'Kz '+new Intl.NumberFormat('pt-AO',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v);}
 function updateUI(){
   if(!ME)return;
   try{saveDB();}catch(e){}
+  carregarMeuTime()
   const bal=ME.balance;
   document.getElementById('tb-phone').textContent=ME.phone;
   document.getElementById('hh-bal').textContent=kz2(bal);
