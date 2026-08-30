@@ -5,15 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Herd Ranch — Plataforma</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<!-- 1. CDN do Supabase + 2. Inicialização da Conexão -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  const SUPABASE_URL = 'https://fsisdqovpycwrclhdtrl.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_aPZDaeLUnRruAlNYyaRQww_h44-Mjiq';
-  // Linha 13 corrigida:
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-</script>
-  <style>
+<style>
 :root {
   --green:#1a56d6; --green2:#1440a8; --green3:#e8f0ff; --green4:#b8d0ff;
   --gold:#f0a800; --gold2:#fff3cc;
@@ -1555,94 +1547,46 @@ function authSw(m){
   document.getElementById('a-log').style.display=m==='log'?'block':'none';
   document.getElementById('auth-h2').textContent=m==='reg'?'Cadastre-se':'Entrar';
 }
-/* --- AUTH SUPABASE --- */
-async function doReg(){
-  const t=document.getElementById('r-te').value.trim();
+function doReg(){
+  const t=document.getElementById('r-tel').value.trim();
   const p=document.getElementById('r-pw').value;
-  const p2=document.getElementById('r-pm2').value;
+  const p2=document.getElementById('r-pw2').value;
   if(!t){toast('Insere o número de telefone');return;}
   if(p.length<6){toast('Senha: mínimo 6 caracteres');return;}
-  if(p!=p2){toast('As senhas não coincidem');return;}
-
-  // 1. Verificar se o número já está registado no Supabase
-  const { data: userExiste } = await supabaseClient
-    .from('usuarios')
-    .select('*')
-    .eq('phone', t)
-    .maybeSingle();
-
-  if(userExiste){
-    toast('Este número já está registado!');
-    return;
+  if(p!==p2){toast('As senhas não coincidem');return;}
+  let u=DB.users.find(x=>x.phone===t);
+  if(!u){
+    const refCode=document.getElementById('r-ref').value.trim().toUpperCase();
+    // Find inviter by HR-XXXX code or phone
+    const inviter=refCode?DB.users.find(function(x){
+      return ('HR-'+String(x.id).padStart(4,'0'))===refCode ||
+             x.phone.replace(/\s/g,'').replace('+','')===refCode.replace(/\s/g,'').replace('+','');
+    }):null;
+    u={id:DB.nextId++,phone:t,name:t,pw:p,balance:500,active:true,invested:0,totalProfit:0,dailyProfit:0,animals:0,ownedAnimals:[],tasks:[],feedLog:{},dados:{tel:t},invited:[],joinDate:dateStr(),
+      refBy:inviter?inviter.id:null,
+      refL1:inviter?inviter.id:null,
+      refL2:inviter&&inviter.refBy?inviter.refBy:null,
+      refL3:inviter&&inviter.refBy?(function(){var l2=getU(inviter.refBy);return l2&&l2.refBy?l2.refBy:null;})():null
+    };
+    DB.users.push(u);
+    logMov(u.id,'bonus','🎁','Bónus de inscrição',500,'gld');
+    // Add to inviter's team
+    if(inviter){
+      if(!inviter.invited)inviter.invited=[];
+      inviter.invited.push({userId:u.id,phone:t,name:t,invested:false,boughtAnimal:false,joinDate:dateStr()});
+      logMov(inviter.id,'bonus','🔗','Novo membro na equipa: '+t,null,'gld');
+    }
   }
-
-  // 2. Capturar o código de convite do campo ou do localStorage
-  let refCode = document.getElementById('r-ref').value.trim().toUpperCase() || localStorage.getItem('ref_code') || '';
-
-  // 3. Inserir na base de dados centralizada do Supabase
-  const { data: novoUsuario, error } = await supabaseClient
-    .from('usuarios')
-    .insert([{
-      phone: t,
-      password: p,
-      invited_by: refCode,
-      balance: 500,
-      active: true,
-      created_at: new Date().toISOString()
-    }])
-    .select()
-    .single();
-
-  if(error){
-    toast('Erro ao registar: ' + error.message);
-    return;
-  }
-
-  // Define o utilizador atual, limpa o convite temporário e entra na plataforma
-  ME = {
-  invested: 0,
-  totalProfit: 0,
-  dailyProfit: 0,
-  animals: [],
-  ownedAnimals: [],
-  invited: [],
-  dados: { nome: '' },
-  ...novoUsuario
-};
-  localStorage.removeItem('ref_code');
-  launch();
-  }
-async function doLog(){
+  ME=u;if(!ME.feedLog)ME.feedLog={};launch();
+}
+function doLog(){
   const t=document.getElementById('l-tel').value.trim();
   const p=document.getElementById('l-pw').value;
   if(!t||!p){toast('Preenche todos os campos');return;}
-
-  // Buscar utilizador na base de dados central do Supabase
-  const { data: user, error } = await supabaseClient
-    .from('usuarios')
-    .select('*')
-    .eq('phone', t)
-    .eq('password', p)
-    .maybeSingle();
-
-  if(error || !user){
-    toast('Telefone ou senha incorretos!');
-    return;
-  }
-
-  ME = {
-  invested: 0,
-  totalProfit: 0,
-  dailyProfit: 0,
-  animals: [],
-  ownedAnimals: [],
-  invited: [],
-  dados: { nome: '' },
-  ...user
-};
-  launch();
-  }
-  
+  let u=DB.users.find(x=>x.phone===t);
+  if(!u){u={id:DB.nextId++,phone:t,name:t,pw:p,balance:0,active:true,invested:0,totalProfit:0,dailyProfit:0,animals:0,ownedAnimals:[],tasks:[],feedLog:{},dados:{tel:t},invited:[],joinDate:dateStr()};DB.users.push(u);logMov(u.id,'registo','👤','Novo login',null,'neu');}
+  ME=u;if(!ME.feedLog)ME.feedLog={};launch();
+}
 function launch(){
   if(!ME.active){toast('❌ Conta desactivada. Contacta o suporte.');return;}
   document.getElementById('sc-auth').classList.remove('on');
@@ -1685,70 +1629,12 @@ function closeSub(){
   document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
   document.getElementById('sc-app').classList.add('on');
 }
-/* --- SUPABASE FETCH (MEU TIME & ADM) --- */
-async function carregarMeuTime() {
-  const meuCodigo = getInviteCode(ME); 
-
-  const { data: convidados, error } = await supabaseClient
-    .from('usuarios')
-    .select('*')
-    .eq('invited_by', meuCodigo);
-
-  if (error) {
-    console.error("Erro ao carregar equipa:", error);
-    return;
-  }
-
-  const totalConvidadosEl = document.getElementById('st-team');
-  if (totalConvidadosEl) totalConvidadosEl.innerText = convidados.length;
-
-  const listaEl = document.getElementById('sh-lk-list');
-  if (listaEl) {
-    if (convidados.length === 0) {
-      listaEl.innerHTML = '<p style="text-align:center;color:#888;">Ainda não convidaste ninguém.</p>';
-    } else {
-      listaEl.innerHTML = convidados.map(c => `
-        <div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">
-          <span>📱 ${c.phone}</span>
-          <span style="color:green;">Ativo</span>
-        </div>
-      `).join('');
-    }
-  }
-}
-
-async function carregarPainelADM() {
-  const { data: todosUsuarios, error } = await supabaseClient
-    .from('usuarios')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error("Erro no painel ADM:", error);
-    return;
-  }
-
-  const contadorADM = document.getElementById('adm-total-users');
-  if (contadorADM) contadorADM.innerText = todosUsuarios.length;
-
-  const listaADM = document.getElementById('adm-users-list');
-  if (listaADM) {
-    listaADM.innerHTML = todosUsuarios.map(u => `
-      <div style="padding:10px; margin-bottom:8px; background:#fff; border-radius:8px; border:1px solid #ddd;">
-        <p><strong>Telefone:</strong> ${u.phone}</p>
-        <p><strong>Convidado por:</strong> ${u.invited_by || 'Sem indicação (Direto)'}</p>
-        <p><strong>Saldo:</strong> ${u.balance} Kz</p>
-      </div>
-    `).join('');
-  }
-}
 
 /* ── UI UPDATE ── */
 function kz2(v){return'Kz '+new Intl.NumberFormat('pt-AO',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v);}
 function updateUI(){
   if(!ME)return;
   try{saveDB();}catch(e){}
-  carregarMeuTime()
   const bal=ME.balance;
   document.getElementById('tb-phone').textContent=ME.phone;
   document.getElementById('hh-bal').textContent=kz2(bal);
@@ -3446,13 +3332,5 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
     </div>
   </div>
 </div>
-  <script>
-  // Captura o ?ref= da URL e guarda na memória do navegador
-  const urlParams = new URLSearchParams(window.location.search);
-  const refCode = urlParams.get('ref');
-  if (refCode) {
-    localStorage.setItem('ref_code', refCode);
-  }
-</script>
 </body>
 </html>
