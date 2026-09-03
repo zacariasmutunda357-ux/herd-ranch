@@ -3319,6 +3319,17 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
   },100);
 })();
 </script>
+<!-- CDN do Supabase JS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+  // Configuração das Credenciais
+  const SUPABASE_URL = 'https://fsisdqovpycwrclhdtrl.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_aPZDaeLUnRruAlNYyaRQww_h44-Mjiq';
+
+  // Inicialização da instância do Supabase
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+</script>
 
 <!-- LOGOUT CONFIRM MODAL -->
 <div id="logout-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;align-items:center;justify-content:center;padding:30px;">
